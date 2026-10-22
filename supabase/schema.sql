@@ -150,3 +150,6 @@ create policy "doctor reads own licence" on storage.objects for select to authen
   using (bucket_id = 'licences' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "admin reads licences" on storage.objects for select to authenticated
   using (bucket_id = 'licences' and public.my_role() = 'admin');
+
+-- Hardening: the signup trigger function must not be callable through the API.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
