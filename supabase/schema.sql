@@ -98,3 +98,9 @@ create policy "reviews of verified doctors are public" on public.reviews for sel
 create policy "own consents" on public.consents for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 alter publication supabase_realtime add table public.messages;
+
+-- Admin access (added in v0.2). Promote an account with:
+--   update public.profiles set role = 'admin' where id = (select id from auth.users where email = 'you@example.com');
+create policy "admin reads all profiles" on public.profiles for select using (public.my_role() = 'admin');
+create policy "admin reads all doctors" on public.doctors for select using (public.my_role() = 'admin');
+create policy "admin verifies doctors" on public.doctors for update using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
