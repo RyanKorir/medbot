@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Intake = { symptoms: string[]; top_prediction: string | null; urgency: "emergency" | "soon" | "routine" | null; age_group: string | null; sex: string | null };
-type Consult = Intake & { status: "open" | "closed"; doctor_id: string; patient_id: string };
+type Consult = Intake & { status: "open" | "closed"; doctor_id: string; patient_id: string; paid: boolean; doctor: { fee_kes: number } | null };
 type Msg = { id: number; sender_id: string; body: string; created_at: string };
 const dot = { emergency: "bg-red-500", soon: "bg-amber-500", routine: "bg-emerald-500" } as const;
 const label = (s: string) => { const t = s.replace(/_/g, " ").replace(/\s+/g, " ").trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
@@ -20,11 +20,13 @@ export default function Consult() {
   const [reviewed, setReviewed] = useState<{ rating: number } | null>(null);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [phone, setPhone] = useState("");
+  const [pay, setPay] = useState<{ state: "idle" | "sending" | "waiting" | "timeout"; msg: string }>({ state: "idle", msg: "" });
   const bottom = useRef<HTMLDivElement>(null);
 
   async function loadConsult() {
     const sb = supabase();
-    const { data } = await sb.from("consultations").select("symptoms, top_prediction, urgency, age_group, sex, status, doctor_id, patient_id").eq("id", id).maybeSingle();
+    const { data } = await sb.from("consultations").select("symptoms, top_prediction, urgency, age_group, sex, status, doctor_id, patient_id, paid, doctor:doctors(fee_kes)").eq("id", id).maybeSingle();
     if (data) setC(data as Consult);
     const { data: r } = await sb.from("reviews").select("rating").eq("consultation_id", id).maybeSingle();
     setReviewed(r ?? null);
@@ -59,6 +61,31 @@ export default function Consult() {
     const { error } = await supabase().from("messages").insert({ consultation_id: id, sender_id: me, body });
     if (error) setError(error.message);
   }
+  async function startPayment(e: React.FormEvent) {
+    e.preventDefault();
+    setPay({ state: "sending", msg: "" });
+    const { data: { session } } = await supabase().auth.getSession();
+    const res = await fetch("/api/mpesa/stk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
+      body: JSON.stringify({ consultation_id: id, phone }),
+    });
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) setPay({ state: "idle", msg: j.error ?? "Payment failed. Please try again." });
+    else setPay({ state: "waiting", msg: "" });
+  }
+  // After the STK prompt is sent, check for the confirmation every 3 seconds (up to 2 minutes).
+  useEffect(() => {
+    if (pay.state !== "waiting") return;
+    const started = Date.now();
+    const t = setInterval(() => {
+      if (Date.now() - started > 120000) { setPay({ state: "timeout", msg: "" }); clearInterval(t); return; }
+      loadConsult();
+    }, 3000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pay.state]);
+
   async function closeConsult() {
     if (!confirm("Close this consultation? Neither of you can send more messages afterwards.")) return;
     const { error } = await supabase().rpc("close_consultation", { cid: id });
@@ -116,7 +143,23 @@ export default function Consult() {
             <button className="btn" disabled={rating < 1}>Submit review</button>
           </form>
         ) : <p className="text-sm text-slate-500">This consultation is closed.{reviewed ? ` Rated ${reviewed.rating}/5.` : ""}</p>
-      ) : (
+      ) : !c ? null : !c.paid ? (
+          isPatient ? (
+            <form onSubmit={startPayment} className="card space-y-3">
+              <div className="font-semibold">Pay KES {(c.doctor?.fee_kes ?? 0).toLocaleString()} to start chatting</div>
+              {pay.state === "waiting" ? (
+                <p className="text-sm text-slate-700">Check your phone and enter your M-Pesa PIN. This page updates automatically.</p>
+              ) : (
+                <>
+                  <input className="input" inputMode="tel" placeholder="M-Pesa number, e.g. 0712345678" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                  <button className="btn" disabled={pay.state === "sending"}>{pay.state === "sending" ? "Sending request…" : "Pay with M-Pesa"}</button>
+                </>
+              )}
+              {pay.state === "timeout" && <p className="text-sm text-amber-700">We have not received a confirmation. If money left your account, wait a minute and refresh. Otherwise try again.</p>}
+              {pay.msg && <p className="text-sm text-red-600">{pay.msg}</p>}
+            </form>
+          ) : <p className="text-sm text-slate-500">Waiting for the patient to pay the consultation fee.</p>
+        ) : (
         <form onSubmit={send} className="flex gap-2">
           <input className="input" placeholder="Type a message…" value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} />
           <button className="btn">Send</button>

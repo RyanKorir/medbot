@@ -153,3 +153,10 @@ create policy "admin reads licences" on storage.objects for select to authentica
 
 -- Hardening: the signup trigger function must not be callable through the API.
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+-- v0.5 (Step 2: M-Pesa). Summary of the migration; replace <RANDOM-SECRET> with the same value as MPESA_CALLBACK_SECRET.
+-- create schema if not exists private; create table private.secrets (name text primary key, value text not null);
+-- insert into private.secrets values ('mpesa_callback', '<RANDOM-SECRET>');
+-- Tables: app_settings (payments_enabled, default false), payments (pending/paid/failed), consultations.paid.
+-- Functions: set_consultation_paid (trigger), start_payment, attach_checkout, record_mpesa_callback (secret-guarded).
+-- Messages can only be sent in open, paid consultations. See the Supabase migration history for the full SQL.
