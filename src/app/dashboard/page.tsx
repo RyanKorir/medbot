@@ -7,15 +7,18 @@ import { useMe } from "@/lib/useMe";
 import { SPECIALTIES } from "@/lib/triage";
 
 type Row = { urgency: "emergency" | "soon" | "routine" | null; id: string; created_at: string; status: string; patient: { full_name: string } | null; doctor: { specialty: string; profiles: { full_name: string } | null } | null };
-type DoctorRow = { specialty: string; hospital: string | null; bio: string | null; fee_kes: number; verified: boolean };
+type DoctorRow = { specialty: string; hospital: string | null; bio: string | null; fee_kes: number; verified: boolean; licence_number: string | null; licence_doc: string | null };
+const dotColor = { emergency: "bg-red-500", soon: "bg-amber-500", routine: "bg-emerald-500" } as const;
 
 export default function Dashboard() {
   const { me, loading } = useMe();
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
   const [doc, setDoc] = useState<DoctorRow | null>(null);
-  const [form, setForm] = useState({ specialty: SPECIALTIES[0], hospital: "", bio: "", fee_kes: 0 });
+  const [form, setForm] = useState({ specialty: SPECIALTIES[0], hospital: "", bio: "", fee_kes: 0, licence_number: "" });
+  const [file, setFile] = useState<File | null>(null);
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!me) return;
@@ -25,8 +28,8 @@ export default function Dashboard() {
       .order("created_at", { ascending: false });
     setRows((data as unknown as Row[]) ?? []);
     if (me.role === "doctor") {
-      const { data: d } = await sb.from("doctors").select("specialty, hospital, bio, fee_kes, verified").eq("id", me.id).maybeSingle();
-      if (d) { setDoc(d); setForm({ specialty: d.specialty, hospital: d.hospital ?? "", bio: d.bio ?? "", fee_kes: d.fee_kes }); }
+      const { data: d } = await sb.from("doctors").select("specialty, hospital, bio, fee_kes, verified, licence_number, licence_doc").eq("id", me.id).maybeSingle();
+      if (d) { setDoc(d); setForm({ specialty: d.specialty, hospital: d.hospital ?? "", bio: d.bio ?? "", fee_kes: d.fee_kes, licence_number: d.licence_number ?? "" }); }
     }
   }, [me]);
 
@@ -36,13 +39,24 @@ export default function Dashboard() {
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!me) return;
-    setMsg("");
+    setMsg(""); setBusy(true);
     const sb = supabase();
-    const values = { specialty: form.specialty, hospital: form.hospital || null, bio: form.bio || null, fee_kes: Number(form.fee_kes) || 0 };
+    let licence_doc = doc?.licence_doc ?? null;
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { setMsg("The file must be under 5 MB."); setBusy(false); return; }
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
+      const path = `${me.id}/licence.${ext}`;
+      const up = await sb.storage.from("licences").upload(path, file, { upsert: true, contentType: file.type });
+      if (up.error) { setMsg(up.error.message); setBusy(false); return; }
+      licence_doc = path;
+    }
+    const values = { specialty: form.specialty, hospital: form.hospital || null, bio: form.bio || null, fee_kes: Number(form.fee_kes) || 0, licence_number: form.licence_number.trim() || null, licence_doc };
     const { error } = doc
       ? await sb.from("doctors").update(values).eq("id", me.id)
       : await sb.from("doctors").insert({ id: me.id, ...values });
-    setMsg(error ? error.message : "Saved. An admin will verify your registration before you appear in the directory.");
+    setBusy(false);
+    setFile(null);
+    setMsg(error ? error.message : "Saved. An admin will check your KMPDC licence before you appear in the directory.");
     load();
   }
 
@@ -67,8 +81,14 @@ export default function Dashboard() {
           <input className="input" placeholder="Hospital or clinic" value={form.hospital} onChange={(e) => setForm({ ...form, hospital: e.target.value })} />
           <textarea className="input" rows={3} placeholder="Short bio" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
           <input className="input" type="number" min={0} placeholder="Consultation fee (KES)" value={form.fee_kes} onChange={(e) => setForm({ ...form, fee_kes: Number(e.target.value) })} />
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="text-sm font-medium">Professional registration (required for verification)</div>
+            <input className="input" placeholder="KMPDC licence / registration number" value={form.licence_number} onChange={(e) => setForm({ ...form, licence_number: e.target.value })} required />
+            <input className="text-sm" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <p className="text-xs text-slate-500">{doc?.licence_doc ? "A document is on file. Upload again to replace it." : "Upload a PDF or photo of your practising licence (max 5 MB). Only you and Medbot admins can see it."}</p>
+          </div>
           {msg && <p className="text-sm text-slate-600">{msg}</p>}
-          <button className="btn">{doc ? "Update profile" : "Submit for verification"}</button>
+          <button className="btn" disabled={busy}>{busy ? "Saving…" : doc ? "Update profile" : "Submit for verification"}</button>
         </form>
       )}
 
@@ -79,10 +99,13 @@ export default function Dashboard() {
         ) : rows.map((r) => (
           <Link key={r.id} href={`/consult/${r.id}`} className="card flex items-center justify-between hover:border-brand-500">
             <div>
-              <div className="flex items-center gap-2 font-medium">{r.urgency && <span className={`h-2.5 w-2.5 rounded-full ${r.urgency === "emergency" ? "bg-red-500" : r.urgency === "soon" ? "bg-amber-500" : "bg-emerald-500"}`} />}{me.role === "doctor" ? r.patient?.full_name || "Patient" : `Dr. ${r.doctor?.profiles?.full_name ?? ""}`}</div>
-              <div className="text-xs text-slate-500">{r.doctor?.specialty} · {new Date(r.created_at).toLocaleDateString()}</div>
+              <div className="flex items-center gap-2 font-medium">
+                {r.urgency && <span className={`h-2.5 w-2.5 rounded-full ${dotColor[r.urgency]}`} />}
+                {me.role === "doctor" ? r.patient?.full_name || "Patient" : `Dr. ${r.doctor?.profiles?.full_name ?? ""}`}
+              </div>
+              <div className="text-xs text-slate-500">{r.doctor?.specialty} · {new Date(r.created_at).toLocaleDateString()} · {r.status}</div>
             </div>
-            <span className="text-sm font-medium text-brand-700">Open chat →</span>
+            <span className="text-sm font-medium text-brand-700">{r.status === "open" ? "Open chat →" : "View →"}</span>
           </Link>
         ))}
       </section>

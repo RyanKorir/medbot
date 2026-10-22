@@ -5,7 +5,8 @@ import SetupNotice from "@/components/SetupNotice";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SPECIALTIES } from "@/lib/triage";
 
-type Doctor = { id: string; specialty: string; hospital: string | null; bio: string | null; fee_kes: number; profiles: { full_name: string } | null };
+type Rating = { avg_rating: number; n: number };
+type Doctor = { rating?: Rating; id: string; specialty: string; hospital: string | null; bio: string | null; fee_kes: number; profiles: { full_name: string } | null };
 
 function Directory() {
   const router = useRouter();
@@ -19,7 +20,13 @@ function Directory() {
     if (!supabaseConfigured) { setLoading(false); return; }
     let q = supabase().from("doctors").select("id, specialty, hospital, bio, fee_kes, profiles(full_name)").eq("verified", true);
     if (specialty) q = q.eq("specialty", specialty);
-    q.then(({ data }) => { setDoctors((data as unknown as Doctor[]) ?? []); setLoading(false); });
+    q.then(async ({ data }) => {
+      const list = (data as unknown as Doctor[]) ?? [];
+      const { data: rs } = await supabase().from("doctor_ratings").select("doctor_id, avg_rating, n").in("doctor_id", list.map((d) => d.id));
+      const map = new Map((rs ?? []).map((r) => [r.doctor_id as string, r as unknown as Rating]));
+      setDoctors(list.map((d) => ({ ...d, rating: map.get(d.id) })));
+      setLoading(false);
+    });
   }, [specialty]);
 
   async function consult(doctorId: string) {
@@ -53,6 +60,7 @@ function Directory() {
             <div key={d.id} className="card space-y-2">
               <div className="font-semibold">Dr. {d.profiles?.full_name ?? "Unnamed"}</div>
               <div className="text-sm text-slate-600">{d.specialty}{d.hospital ? ` · ${d.hospital}` : ""}</div>
+              <div className="text-sm">{d.rating ? <span className="text-amber-600">★ {d.rating.avg_rating} <span className="text-slate-500">({d.rating.n} review{d.rating.n === 1 ? "" : "s"})</span></span> : <span className="text-slate-400">No reviews yet</span>}</div>
               {d.bio && <p className="text-sm text-slate-600">{d.bio}</p>}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-sm font-medium">{d.fee_kes > 0 ? `KES ${d.fee_kes.toLocaleString()}` : "Free"}</span>

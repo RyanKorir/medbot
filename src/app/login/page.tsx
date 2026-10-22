@@ -30,6 +30,7 @@ export default function Login() {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button className="btn w-full" disabled={busy}>{busy ? "Logging in…" : "Log in"}</button>
       </form>
+      <p className="text-sm text-slate-600"><Link className="font-medium text-brand-700" href="/forgot">Forgot your password?</Link></p>
       <p className="text-sm text-slate-600">New here? <Link className="font-medium text-brand-700" href="/signup">Create an account</Link></p>
     </div>
   );

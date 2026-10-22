@@ -110,3 +110,43 @@ alter table public.consultations
   add column if not exists urgency text check (urgency in ('emergency','soon','routine')),
   add column if not exists age_group text check (age_group in ('child','adult','senior')),
   add column if not exists sex text check (sex in ('female','male'));
+
+-- v0.4 (Step 1: trust basics): licence fields, close consultation, reviews only on closed consultations,
+-- public rating aggregates, private storage bucket for licence documents.
+alter table public.doctors add column if not exists licence_number text, add column if not exists licence_doc text;
+
+create or replace function public.close_consultation(cid uuid) returns void language plpgsql security definer set search_path = public as $$
+begin
+  update consultations set status = 'closed' where id = cid and doctor_id = auth.uid();
+  if not found then raise exception 'Not allowed'; end if;
+end $$;
+revoke all on function public.close_consultation(uuid) from public, anon;
+grant execute on function public.close_consultation(uuid) to authenticated;
+
+drop policy if exists "participants send messages" on public.messages;
+create policy "participants send messages" on public.messages for insert with check (
+  sender_id = auth.uid() and exists (
+    select 1 from public.consultations c
+    where c.id = consultation_id and c.status = 'open' and (c.patient_id = auth.uid() or c.doctor_id = auth.uid())));
+
+drop policy if exists "patient reviews own consultation" on public.reviews;
+create policy "patient reviews closed consultation" on public.reviews for insert with check (
+  exists (select 1 from public.consultations c where c.id = consultation_id and c.patient_id = auth.uid() and c.status = 'closed'));
+
+create or replace view public.doctor_ratings as
+  select c.doctor_id, round(avg(r.rating)::numeric, 1) as avg_rating, count(*)::int as n
+  from public.reviews r join public.consultations c on c.id = r.consultation_id
+  group by c.doctor_id;
+grant select on public.doctor_ratings to anon, authenticated;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('licences', 'licences', false, 5242880, array['application/pdf','image/jpeg','image/png'])
+on conflict (id) do nothing;
+create policy "doctor uploads own licence" on storage.objects for insert to authenticated
+  with check (bucket_id = 'licences' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "doctor updates own licence" on storage.objects for update to authenticated
+  using (bucket_id = 'licences' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "doctor reads own licence" on storage.objects for select to authenticated
+  using (bucket_id = 'licences' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "admin reads licences" on storage.objects for select to authenticated
+  using (bucket_id = 'licences' and public.my_role() = 'admin');

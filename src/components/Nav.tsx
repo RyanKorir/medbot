@@ -20,6 +20,7 @@ export default function Nav() {
         <Link href="/check" className="hover:text-brand-700">Symptom checker</Link>
         <Link href="/doctors" className="hover:text-brand-700">Doctors</Link>
         {!loading && me && <Link href="/dashboard" className="hover:text-brand-700">Dashboard</Link>}
+        {!loading && me && <Link href="/profile" className="hover:text-brand-700">Profile</Link>}
         {!loading && me?.role === "admin" && <Link href="/admin" className="hover:text-brand-700">Admin</Link>}
         {!loading && (me
           ? <button onClick={logout} className="btn-ghost">Log out</button>
