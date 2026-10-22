@@ -28,7 +28,9 @@ function Directory() {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) { router.push("/login"); return; }
     await sb.from("consents").upsert({ user_id: user.id, purpose: "consultation" });
-    const { data, error } = await sb.from("consultations").insert({ patient_id: user.id, doctor_id: doctorId }).select("id").single();
+    let intake: Record<string, unknown> = {};
+    try { const raw = sessionStorage.getItem("medbot_check"); if (raw) intake = JSON.parse(raw); } catch { /* none saved */ }
+    const { data, error } = await sb.from("consultations").insert({ patient_id: user.id, doctor_id: doctorId, ...intake }).select("id").single();
     if (error || !data) setMsg(error?.message ?? "Could not start consultation."); else router.push(`/consult/${data.id}`);
   }
 

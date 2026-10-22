@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useMe } from "@/lib/useMe";
 import { SPECIALTIES } from "@/lib/triage";
 
-type Row = { id: string; created_at: string; status: string; patient: { full_name: string } | null; doctor: { specialty: string; profiles: { full_name: string } | null } | null };
+type Row = { urgency: "emergency" | "soon" | "routine" | null; id: string; created_at: string; status: string; patient: { full_name: string } | null; doctor: { specialty: string; profiles: { full_name: string } | null } | null };
 type DoctorRow = { specialty: string; hospital: string | null; bio: string | null; fee_kes: number; verified: boolean };
 
 export default function Dashboard() {
@@ -21,7 +21,7 @@ export default function Dashboard() {
     if (!me) return;
     const sb = supabase();
     const { data } = await sb.from("consultations")
-      .select("id, created_at, status, patient:profiles!consultations_patient_id_fkey(full_name), doctor:doctors(specialty, profiles(full_name))")
+      .select("id, urgency, created_at, status, patient:profiles!consultations_patient_id_fkey(full_name), doctor:doctors(specialty, profiles(full_name))")
       .order("created_at", { ascending: false });
     setRows((data as unknown as Row[]) ?? []);
     if (me.role === "doctor") {
@@ -79,7 +79,7 @@ export default function Dashboard() {
         ) : rows.map((r) => (
           <Link key={r.id} href={`/consult/${r.id}`} className="card flex items-center justify-between hover:border-brand-500">
             <div>
-              <div className="font-medium">{me.role === "doctor" ? r.patient?.full_name || "Patient" : `Dr. ${r.doctor?.profiles?.full_name ?? ""}`}</div>
+              <div className="flex items-center gap-2 font-medium">{r.urgency && <span className={`h-2.5 w-2.5 rounded-full ${r.urgency === "emergency" ? "bg-red-500" : r.urgency === "soon" ? "bg-amber-500" : "bg-emerald-500"}`} />}{me.role === "doctor" ? r.patient?.full_name || "Patient" : `Dr. ${r.doctor?.profiles?.full_name ?? ""}`}</div>
               <div className="text-xs text-slate-500">{r.doctor?.specialty} · {new Date(r.created_at).toLocaleDateString()}</div>
             </div>
             <span className="text-sm font-medium text-brand-700">Open chat →</span>

@@ -104,3 +104,9 @@ alter publication supabase_realtime add table public.messages;
 create policy "admin reads all profiles" on public.profiles for select using (public.my_role() = 'admin');
 create policy "admin reads all doctors" on public.doctors for select using (public.my_role() = 'admin');
 create policy "admin verifies doctors" on public.doctors for update using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
+
+-- v0.3: symptom-check summary attached to a consultation (urgency, age group, sex)
+alter table public.consultations
+  add column if not exists urgency text check (urgency in ('emergency','soon','routine')),
+  add column if not exists age_group text check (age_group in ('child','adult','senior')),
+  add column if not exists sex text check (sex in ('female','male'));

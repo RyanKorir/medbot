@@ -3,6 +3,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+type Intake = { symptoms: string[]; top_prediction: string | null; urgency: "emergency" | "soon" | "routine" | null; age_group: string | null; sex: string | null };
+const dot = { emergency: "bg-red-500", soon: "bg-amber-500", routine: "bg-emerald-500" } as const;
+const label = (s: string) => { const t = s.replace(/_/g, " ").replace(/\s+/g, " ").trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
+
 type Msg = { id: number; sender_id: string; body: string; created_at: string };
 
 export default function Consult() {
@@ -12,6 +16,7 @@ export default function Consult() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const [intake, setIntake] = useState<Intake | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,6 +26,8 @@ export default function Consult() {
       const { data: { user } } = await sb.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setMe(user.id);
+      const { data: c } = await sb.from("consultations").select("symptoms, top_prediction, urgency, age_group, sex").eq("id", id).maybeSingle();
+      if (c) setIntake(c as Intake);
       const { data, error } = await sb.from("messages").select("id, sender_id, body, created_at").eq("consultation_id", id).order("created_at");
       if (error) setError(error.message); else setMessages(data ?? []);
       channel = sb.channel(`consult-${id}`)
@@ -46,6 +53,17 @@ export default function Consult() {
     <div className="mx-auto max-w-2xl space-y-3">
       <h1 className="text-xl font-bold">Consultation</h1>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {intake && intake.symptoms.length > 0 && (
+        <div className="card space-y-1 text-sm">
+          <div className="flex items-center gap-2 font-semibold">
+            {intake.urgency && <span className={`h-2.5 w-2.5 rounded-full ${dot[intake.urgency]}`} />}
+            Symptom check summary{intake.urgency ? ` · ${intake.urgency}` : ""}
+          </div>
+          <div><span className="text-slate-500">Symptoms:</span> {intake.symptoms.map(label).join(", ")}</div>
+          {intake.top_prediction && <div><span className="text-slate-500">Top automated match:</span> {intake.top_prediction} <span className="text-xs text-slate-400">(not a diagnosis)</span></div>}
+          {(intake.age_group || intake.sex) && <div><span className="text-slate-500">Patient:</span> {[intake.sex, intake.age_group === "child" ? "under 5" : intake.age_group === "senior" ? "65+" : intake.age_group].filter(Boolean).join(", ")}</div>}
+        </div>
+      )}
       <div className="card h-[60vh] space-y-2 overflow-y-auto">
         {messages.length === 0 && <p className="text-sm text-slate-500">Say hello and describe how you are feeling.</p>}
         {messages.map((m) => (
