@@ -1,0 +1,42 @@
+disease,weight,tier,basis
+(vertigo) Paroymsal  Positional Vertigo,1.5,C,Uncommon in outpatient settings; baseline weight
+AIDS,1.5,C,Uncommon in outpatient settings; baseline weight
+Acne,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Alcoholic hepatitis,1.5,C,Uncommon in outpatient settings; baseline weight
+Allergy,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Arthritis,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Bronchial Asthma,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Cervical spondylosis,1.5,C,Uncommon in outpatient settings; baseline weight
+Chicken pox,1.5,C,Uncommon in outpatient settings; baseline weight
+Chronic cholestasis,1.5,C,Uncommon in outpatient settings; baseline weight
+Common Cold,6,A,"Leading outpatient causes in Kenya: respiratory infections, malaria, skin disease, diarrhoea, UTI (KNBS Economic Survey 2025; KNBS 2018 and 2022 morbidity reports)"
+Dengue,1.5,C,Uncommon in outpatient settings; baseline weight
+Diabetes,1.5,C,Uncommon in outpatient settings; baseline weight
+Dimorphic hemmorhoids(piles),1.5,C,Uncommon in outpatient settings; baseline weight
+Drug Reaction,1.5,C,Uncommon in outpatient settings; baseline weight
+Fungal infection,6,A,"Leading outpatient causes in Kenya: respiratory infections, malaria, skin disease, diarrhoea, UTI (KNBS Economic Survey 2025; KNBS 2018 and 2022 morbidity reports)"
+GERD,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Gastroenteritis,6,A,"Leading outpatient causes in Kenya: respiratory infections, malaria, skin disease, diarrhoea, UTI (KNBS Economic Survey 2025; KNBS 2018 and 2022 morbidity reports)"
+Heart attack,1,D,Dangerous conditions kept at neutral weight so they are not suppressed; red-flag rules and the can't-miss rule also protect them
+Hepatitis B,1.5,C,Uncommon in outpatient settings; baseline weight
+Hepatitis C,1.5,C,Uncommon in outpatient settings; baseline weight
+Hepatitis D,1.5,C,Uncommon in outpatient settings; baseline weight
+Hepatitis E,1.5,C,Uncommon in outpatient settings; baseline weight
+hepatitis A,1.5,C,Uncommon in outpatient settings; baseline weight
+Hypertension,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Hyperthyroidism,1.5,C,Uncommon in outpatient settings; baseline weight
+Hypothyroidism,1.5,C,Uncommon in outpatient settings; baseline weight
+Hypoglycemia,1.5,C,Uncommon in outpatient settings; baseline weight
+Impetigo,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Jaundice,1.5,C,Uncommon in outpatient settings; baseline weight
+Malaria,6,A,"Leading outpatient causes in Kenya: respiratory infections, malaria, skin disease, diarrhoea, UTI (KNBS Economic Survey 2025; KNBS 2018 and 2022 morbidity reports)"
+Migraine,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Osteoarthristis,1.5,C,Uncommon in outpatient settings; baseline weight
+Paralysis (brain hemorrhage),1,D,Dangerous conditions kept at neutral weight so they are not suppressed; red-flag rules and the can't-miss rule also protect them
+Peptic ulcer diseae,1.5,C,Uncommon in outpatient settings; baseline weight
+Pneumonia,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Psoriasis,1.5,C,Uncommon in outpatient settings; baseline weight
+Tuberculosis,1.5,C,Uncommon in outpatient settings; baseline weight
+Typhoid,3,B,"Common but smaller share of outpatient visits: pneumonia, arthritis/joint pain, hypertension, typhoid, asthma etc. (KNBS morbidity reports; county health plans)"
+Urinary tract infection,6,A,"Leading outpatient causes in Kenya: respiratory infections, malaria, skin disease, diarrhoea, UTI (KNBS Economic Survey 2025; KNBS 2018 and 2022 morbidity reports)"
+Varicose veins,1.5,C,Uncommon in outpatient settings; baseline weight

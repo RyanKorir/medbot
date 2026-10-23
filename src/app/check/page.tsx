@@ -100,12 +100,14 @@ export default function Check() {
             {result.predictions.map((p, i) => (
               <div key={p.key} className="card flex items-center justify-between gap-4">
                 <div>
-                  <div className="font-semibold">{i + 1}. {p.label}</div>
+                  <div className="font-semibold">{i + 1}. {p.label}{p.cantMiss && <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 align-middle text-xs font-semibold text-red-700">Serious: needs ruling out</span>}</div>
                   <div className="text-sm text-slate-600">Suggested specialist: {p.specialty}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-slate-500">match</div>
-                  <div className="text-lg font-bold">{Math.round(p.probability * 100)}%</div>
+                  {p.cantMiss ? <div className="text-sm font-semibold text-red-700">Ask a doctor</div> : (<>
+                    <div className="text-sm text-slate-500">match</div>
+                    <div className="text-lg font-bold">{Math.round(p.probability * 100)}%</div>
+                  </>)}
                   <Link className="text-sm font-medium text-brand-700 hover:underline" href={`/doctors?specialty=${encodeURIComponent(p.specialty)}`}>Talk to a {p.specialty} →</Link>
                 </div>
               </div>
@@ -122,7 +124,7 @@ export default function Check() {
       <details className="card text-sm text-slate-600">
         <summary className="cursor-pointer font-medium text-slate-800">About this checker, and its limits</summary>
         <div className="mt-2 space-y-2">
-          <p>It compares your symptoms with a public dataset of 41 conditions, including malaria, typhoid, tuberculosis and HIV. It is a statistical tool, not a doctor, and it was not clinically validated on Kenyan patients.</p>
+          <p>It compares your symptoms with a public dataset of 41 conditions, including malaria, typhoid, tuberculosis and HIV, and weighs each by how common it is in Kenyan outpatient care (KNBS health statistics). A serious condition that your symptoms fit is always shown, even if a common one ranks higher. It is a statistical tool, not a doctor, and it was not clinically validated on Kenyan patients.</p>
           <p>Studies of symptom checkers found they sometimes under-estimate urgency, so Medbot errs on the side of caution. It does not cover every condition, such as cholera or measles. If you feel seriously unwell, ignore the results and get care.</p>
           <p>Your symptoms stay in your browser until you choose to share them with a doctor.</p>
         </div>

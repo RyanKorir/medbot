@@ -13,6 +13,7 @@ Shape of the system: one repo, one Vercel project, one Supabase project. Nothing
 - [x] FHIR R4 export of a consultation (patient or doctor, JSON); doctor records a confirmed diagnosis when closing, which builds a real labelled dataset
 - [x] M-Pesa status check (STK Push Query) as a fallback when Safaricom's callback is missed
 - [x] Model evaluation tool: scripts/evaluate_vignettes.py (top-1/top-3 accuracy, under-triage rate) for clinician-written vignettes
+- [x] Symptom checker uses Kenyan outpatient prevalence (scripts/kenya_priors.csv) + a "can't-miss" rule for serious conditions; datasets reviewed in docs/DATASETS.md
 - [x] Hardening: row-level security everywhere, private licence storage, database indexes, security headers,
       daily keep-alive cron (stops Supabase free plan pausing), monthly Dependabot updates
 
@@ -21,6 +22,7 @@ Shape of the system: one repo, one Vercel project, one Supabase project. Nothing
 - [ ] Step 4: video call (free Jitsi link)
 - [ ] Step 5: visit notes, prescriptions, patient records, admin analytics, audit log
 - [ ] Swahili (needs a native-speaker review of the safety messages)
+- [ ] DDXPlus integration: download it from figshare (blocked from the build environment) and share release_evidences.json, release_conditions.json and a train CSV sample, then map it to the symptom list.
 - [ ] A better model: needs ~100+ clinician-written vignettes (format: scripts/examples/vignettes_template.csv) or a licensed clinical dataset. Run the evaluation script, then retrain. Follow-up questions come after that.
 - [ ] M-Pesa refunds and doctor payouts
 - [ ] Admin screens for managing users (today: SQL in Supabase)

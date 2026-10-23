@@ -2,7 +2,7 @@
 
 Usage:  python3 scripts/evaluate_vignettes.py path/to/vignettes.csv
 Reports top-1 / top-3 accuracy and, most importantly, UNDER-triage (the checker said less urgent than the clinician).
-It mirrors src/lib/predict.ts: Naive Bayes + red-flag override + one-level bump for under-5s and 65+.
+It mirrors src/lib/predict.ts: Naive Bayes with Kenyan priors, the can't-miss rule, the red-flag override and a one-level bump for under-5s and 65+.
 """
 import csv, json, math, re, sys
 
@@ -13,13 +13,20 @@ meta = {m[0]: {"label": m[1], "urgency": m[2]} for m in re.findall(r'"([^"]+)":\
 RED = ["chest_pain", "breathlessness", "coma", "altered_sensorium", "slurred_speech", "weakness_of_one_body_side", "blood_in_sputum", "stomach_bleeding", "bloody_stool", "loss_of_balance"]
 ORDER = ["routine", "soon", "emergency"]
 
+def posterior(idx, prior):
+    sc = [prior[d] + sum(model["logp"][d][j] for j in idx) for d in range(len(model["diseases"]))]
+    m = max(sc); e = [math.exp(x - m) for x in sc]; t = sum(e)
+    return [x / t for x in e]
+
 def assess(symptoms, age):
     idx = [sym_idx[s] for s in symptoms if s in sym_idx]
-    scores = [model["priors"][d] + sum(model["logp"][d][j] for j in idx) for d in range(len(model["diseases"]))]
-    m = max(scores); e = [math.exp(x - m) for x in scores]; t = sum(e)
-    ranked = sorted(zip(model["diseases"], [x / t for x in e]), key=lambda z: -z[1])[:3]
-    top = [meta[k]["label"] for k, _ in ranked]
-    urg = meta[ranked[0][0]]["urgency"]
+    local, neutral = posterior(idx, model["priors"]), posterior(idx, model["priors_flat"])
+    order = sorted(range(len(local)), key=lambda i: -local[i])
+    shown = order[:3]
+    missed = [i for i in order[3:] if meta[model["diseases"][i]]["urgency"] == "emergency" and neutral[i] >= 0.15]
+    if missed: shown[2] = max(missed, key=lambda i: neutral[i])
+    top = [meta[model["diseases"][i]]["label"] for i in shown]
+    urg = meta[model["diseases"][order[0]]]["urgency"]
     if any(s in RED for s in symptoms): urg = "emergency"
     elif age in ("child", "senior") and urg != "emergency": urg = ORDER[min(ORDER.index(urg) + 1, 2)]
     return top, urg
