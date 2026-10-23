@@ -5,6 +5,7 @@ import SetupNotice from "@/components/SetupNotice";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SPECIALTIES } from "@/lib/triage";
 
+type Review = { rating: number; comment: string | null; created_at: string };
 type Rating = { avg_rating: number; n: number };
 type Doctor = { rating?: Rating; id: string; specialty: string; hospital: string | null; bio: string | null; fee_kes: number; profiles: { full_name: string } | null };
 
@@ -15,6 +16,14 @@ function Directory() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
+  const [open, setOpen] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  async function toggleReviews(doctorId: string) {
+    if (open === doctorId) { setOpen(null); return; }
+    setOpen(doctorId); setReviews([]);
+    const { data } = await supabase().from("doctor_review_list").select("rating, comment, created_at").eq("doctor_id", doctorId).order("created_at", { ascending: false }).limit(5);
+    setReviews((data as Review[]) ?? []);
+  }
 
   useEffect(() => {
     if (!supabaseConfigured) { setLoading(false); return; }
@@ -60,7 +69,14 @@ function Directory() {
             <div key={d.id} className="card space-y-2">
               <div className="font-semibold">Dr. {d.profiles?.full_name ?? "Unnamed"}</div>
               <div className="text-sm text-slate-600">{d.specialty}{d.hospital ? ` · ${d.hospital}` : ""}</div>
-              <div className="text-sm">{d.rating ? <span className="text-amber-600">★ {d.rating.avg_rating} <span className="text-slate-500">({d.rating.n} review{d.rating.n === 1 ? "" : "s"})</span></span> : <span className="text-slate-400">No reviews yet</span>}</div>
+              <div className="text-sm">{d.rating ? <span className="text-amber-600">★ {d.rating.avg_rating} <button className="text-slate-500 underline" onClick={() => toggleReviews(d.id)}>({d.rating.n} review{d.rating.n === 1 ? "" : "s"})</button></span> : <span className="text-slate-400">No reviews yet</span>}</div>
+              {open === d.id && (
+                <div className="space-y-1 rounded-lg bg-slate-50 p-2 text-sm">
+                  {reviews.length === 0 ? <span className="text-slate-500">Loading…</span> : reviews.map((r, n) => (
+                    <div key={n}><span className="text-amber-600">{"★".repeat(r.rating)}</span> <span className="text-slate-600">{r.comment || "No comment"}</span></div>
+                  ))}
+                </div>
+              )}
               {d.bio && <p className="text-sm text-slate-600">{d.bio}</p>}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-sm font-medium">{d.fee_kes > 0 ? `KES ${d.fee_kes.toLocaleString()}` : "Free"}</span>

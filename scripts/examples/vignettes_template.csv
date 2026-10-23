@@ -1,0 +1,7 @@
+# FORMAT EXAMPLE ONLY - NOT CLINICAL DATA. Replace with vignettes written and checked by licensed clinicians.
+# symptoms are ids from src/data/model.json separated by "|"; expected_condition must match a label in src/lib/triage.ts;
+# expected_urgency is emergency | soon | routine; age_group is optional (child | adult | senior).
+symptoms,expected_condition,expected_urgency,age_group
+itching|skin_rash|nodal_skin_eruptions,Fungal infection,routine,adult
+high_fever|chills|vomiting|headache|sweating,Malaria,soon,adult
+chest_pain|breathlessness|sweating,Heart attack,emergency,senior

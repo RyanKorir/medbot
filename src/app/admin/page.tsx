@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useMe } from "@/lib/useMe";
 
+type Stats = Record<string, number | null>;
 type Pay = { id: string; amount_kes: number; status: string; phone: string; mpesa_receipt: string | null; created_at: string };
 type D = { id: string; specialty: string; hospital: string | null; fee_kes: number; verified: boolean; licence_number: string | null; licence_doc: string | null; profiles: { full_name: string } | null };
 
@@ -11,11 +12,14 @@ export default function Admin() {
   const [docs, setDocs] = useState<D[]>([]);
   const [err, setErr] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [pays, setPays] = useState<Pay[]>([]);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase().from("doctors").select("id, specialty, hospital, fee_kes, verified, licence_number, licence_doc, profiles(full_name)").order("verified");
     if (error) setErr(error.message); else setDocs((data as unknown as D[]) ?? []);
+    const { data: sd } = await supabase().rpc("admin_stats");
+    setStats((sd as Stats) ?? null);
     const { data: st } = await supabase().from("app_settings").select("payments_enabled").eq("id", 1).maybeSingle();
     setEnabled(Boolean(st?.payments_enabled));
     const { data: ps } = await supabase().from("payments").select("id, amount_kes, status, phone, mpesa_receipt, created_at").order("created_at", { ascending: false }).limit(20);
@@ -61,7 +65,21 @@ export default function Admin() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Doctor verification</h1>
+      <h1 className="text-2xl font-bold">Admin overview</h1>
+      {stats && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {([
+            ["Patients", stats.patients], ["Doctors (verified)", `${stats.doctors_total} (${stats.doctors_verified})`],
+            ["Consultations", stats.consultations_total], ["Open now", stats.consultations_open],
+            ["Last 7 days", stats.consultations_7d], ["Emergency checks", stats.emergency_checks],
+            ["Revenue (KES)", Number(stats.revenue_kes ?? 0).toLocaleString()], ["Avg rating", stats.avg_rating ? `${stats.avg_rating} (${stats.reviews})` : "-"],
+            ["Checker accuracy", stats.labelled ? `${Math.round((Number(stats.agree) / Number(stats.labelled)) * 100)}% of ${stats.labelled}` : "No labelled cases yet"],
+          ] as [string, string | number | null][]).map(([k, v]) => (
+            <div key={k} className="card !p-3"><div className="text-xs text-slate-500">{k}</div><div className="text-lg font-bold">{v ?? 0}</div></div>
+          ))}
+        </div>
+      )}
+      <h2 className="pt-2 text-xl font-bold">Doctor verification</h2>
       <p className="text-sm text-slate-600">Open the licence document and check the number against the KMPDC register before verifying. Verify is disabled until both are provided.</p>
       {err && <p className="text-sm text-red-600">{err}</p>}
       <section className="space-y-3"><h2 className="font-semibold">Awaiting verification ({pending.length})</h2>{pending.length ? pending.map(Row) : <p className="text-sm text-slate-500">Nothing pending.</p>}</section>

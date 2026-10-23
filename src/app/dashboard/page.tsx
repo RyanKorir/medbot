@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [file, setFile] = useState<File | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rating, setRating] = useState<{ avg_rating: number; n: number } | null>(null);
 
   const load = useCallback(async () => {
     if (!me) return;
@@ -29,6 +30,8 @@ export default function Dashboard() {
     setRows((data as unknown as Row[]) ?? []);
     if (me.role === "doctor") {
       const { data: d } = await sb.from("doctors").select("specialty, hospital, bio, fee_kes, verified, licence_number, licence_doc").eq("id", me.id).maybeSingle();
+      const { data: rt } = await sb.from("doctor_ratings").select("avg_rating, n").eq("doctor_id", me.id).maybeSingle();
+      setRating(rt ?? null);
       if (d) { setDoc(d); setForm({ specialty: d.specialty, hospital: d.hospital ?? "", bio: d.bio ?? "", fee_kes: d.fee_kes, licence_number: d.licence_number ?? "" }); }
     }
   }, [me]);
@@ -72,7 +75,7 @@ export default function Dashboard() {
       {me.role === "doctor" && (
         <form onSubmit={saveProfile} className="card space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Your doctor profile</h2>
+            <h2 className="font-semibold">Your doctor profile{rating ? <span className="ml-2 text-sm font-normal text-amber-600">★ {rating.avg_rating} ({rating.n})</span> : null}</h2>
             {doc && <span className={`rounded-full px-3 py-1 text-xs font-semibold ${doc.verified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{doc.verified ? "Verified" : "Awaiting verification"}</span>}
           </div>
           <select className="input" value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })}>
