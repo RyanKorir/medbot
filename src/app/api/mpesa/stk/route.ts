@@ -66,11 +66,15 @@ export async function POST(req: NextRequest) {
         TransactionType: process.env.MPESA_TXN_TYPE ?? "CustomerPayBillOnline",
         Amount: row.amount, PartyA: phone, PartyB: shortcode, PhoneNumber: phone,
         CallBackURL: `${site}/api/mpesa/callback/${callbackSecret}`,
-        AccountReference: "Medbot", TransactionDesc: "Medbot consultation",
+        AccountReference: "Medbot", TransactionDesc: "Consultation", // Daraja limits: reference 12 chars, description 13
       }),
     });
     const out = (await stk.json()) as { ResponseCode?: string; CheckoutRequestID?: string; errorMessage?: string; ResponseDescription?: string };
-    if (!stk.ok || out.ResponseCode !== "0" || !out.CheckoutRequestID) return fail(out.errorMessage ?? out.ResponseDescription ?? "M-Pesa rejected the request.");
+    if (!stk.ok || out.ResponseCode !== "0" || !out.CheckoutRequestID) {
+      const msg = out.errorMessage ?? out.ResponseDescription ?? "M-Pesa rejected the request.";
+      // Daraja allows one open prompt per phone at a time; say so in plain words.
+      return fail(/lock subscriber/i.test(msg) ? "A payment request is already open on this number. Wait one minute, then try again." : msg);
+    }
 
     await sb.rpc("attach_checkout", { pid: row.payment_id, p_checkout: out.CheckoutRequestID });
     return NextResponse.json({ ok: true, amount: row.amount });

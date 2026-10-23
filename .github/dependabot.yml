@@ -1,0 +1,11 @@
+# Keeps dependencies patched with almost no effort: one grouped pull request a month.
+# Security fixes are raised immediately. Merging is a 5-minute job; Vercel builds a preview to check it first.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule: { interval: "monthly" }
+    open-pull-requests-limit: 3
+    groups:
+      all-minor-and-patch:
+        update-types: ["minor", "patch"]
