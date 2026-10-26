@@ -38,16 +38,24 @@ function Directory() {
     });
   }, [specialty]);
 
+  const [compose, setCompose] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [hasCheck, setHasCheck] = useState(false);
+  useEffect(() => { try { setHasCheck(Boolean(sessionStorage.getItem("medbot_check"))); } catch { /* ignore */ } }, []);
+
   async function consult(doctorId: string) {
     setMsg("");
     const sb = supabase();
     const { data: { user } } = await sb.auth.getUser();
     if (!user) { router.push("/login"); return; }
+    // Already talking to this specialist? Continue that conversation instead of opening a second one.
+    const { data: existing } = await sb.from("consultations").select("id").eq("doctor_id", doctorId).eq("patient_id", user.id).eq("status", "open").maybeSingle();
+    if (existing) { router.push(`/consult/${existing.id}`); return; }
     await sb.from("consents").upsert({ user_id: user.id, purpose: "consultation" });
     let intake: Record<string, unknown> = {};
     try { const raw = sessionStorage.getItem("medbot_check"); if (raw) intake = JSON.parse(raw); } catch { /* none saved */ }
-    const { data, error } = await sb.from("consultations").insert({ patient_id: user.id, doctor_id: doctorId, ...intake }).select("id").single();
-    if (error || !data) setMsg(error?.message ?? "Could not start consultation."); else router.push(`/consult/${data.id}`);
+    const { data, error } = await sb.from("consultations").insert({ patient_id: user.id, doctor_id: doctorId, reason: reason.trim() || null, ...intake }).select("id").single();
+    if (error || !data) setMsg(error?.message ?? "Could not send your request."); else router.push(`/consult/${data.id}`);
   }
 
   return (
@@ -80,8 +88,18 @@ function Directory() {
               {d.bio && <p className="text-sm text-slate-600">{d.bio}</p>}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-sm font-medium">{d.fee_kes > 0 ? `KES ${d.fee_kes.toLocaleString()}` : "Free"}</span>
-                <button className="btn" onClick={() => consult(d.id)}>Start consultation</button>
+                {compose !== d.id && <button className="btn" onClick={() => { setCompose(d.id); setReason(""); }}>Message specialist</button>}
               </div>
+              {compose === d.id && (
+                <div className="space-y-2 border-t pt-3">
+                  <textarea className="input" rows={3} maxLength={500} placeholder="What do you need help with? e.g. fever and headache for 3 days" value={reason} onChange={(e) => setReason(e.target.value)} />
+                  {hasCheck && <p className="text-xs text-slate-500">Your latest symptom check will be shared with this doctor.</p>}
+                  <div className="flex gap-2">
+                    <button className="btn" disabled={reason.trim().length < 3} onClick={() => consult(d.id)}>Send request</button>
+                    <button className="btn-ghost" onClick={() => setCompose(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

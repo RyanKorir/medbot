@@ -6,7 +6,7 @@ import { buildBundle, downloadJson } from "@/lib/fhir";
 import { DISEASES } from "@/lib/triage";
 
 type Intake = { symptoms: string[]; top_prediction: string | null; urgency: "emergency" | "soon" | "routine" | null; age_group: string | null; sex: string | null };
-type Consult = Intake & { status: "open" | "closed"; doctor_id: string; patient_id: string; paid: boolean; final_dx: string | null; created_at: string; doctor: { fee_kes: number; licence_number: string | null; profiles: { full_name: string } | null } | null; patient: { full_name: string } | null };
+type Consult = Intake & { status: "open" | "closed"; doctor_id: string; patient_id: string; paid: boolean; reason: string | null; final_dx: string | null; created_at: string; doctor: { fee_kes: number; licence_number: string | null; profiles: { full_name: string } | null } | null; patient: { full_name: string } | null };
 type Msg = { id: number; sender_id: string; body: string; created_at: string };
 const dot = { emergency: "bg-red-500", soon: "bg-amber-500", routine: "bg-emerald-500" } as const;
 const label = (s: string) => { const t = s.replace(/_/g, " ").replace(/\s+/g, " ").trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
@@ -31,7 +31,7 @@ export default function Consult() {
 
   async function loadConsult() {
     const sb = supabase();
-    const { data } = await sb.from("consultations").select("symptoms, top_prediction, urgency, age_group, sex, status, doctor_id, patient_id, paid, final_dx, created_at, doctor:doctors(fee_kes, licence_number, profiles(full_name)), patient:profiles!consultations_patient_id_fkey(full_name)").eq("id", id).maybeSingle();
+    const { data } = await sb.from("consultations").select("symptoms, top_prediction, urgency, age_group, sex, status, doctor_id, patient_id, paid, reason, final_dx, created_at, doctor:doctors(fee_kes, licence_number, profiles(full_name)), patient:profiles!consultations_patient_id_fkey(full_name)").eq("id", id).maybeSingle();
     if (data) setC(data as Consult);
     const { data: r } = await sb.from("reviews").select("rating").eq("consultation_id", id).maybeSingle();
     setReviewed(r ?? null);
@@ -45,11 +45,15 @@ export default function Consult() {
       if (!user) { router.push("/login"); return; }
       setMe(user.id);
       await loadConsult();
+      sb.rpc("mark_read", { cid: id });
       const { data, error } = await sb.from("messages").select("id, sender_id, body, created_at").eq("consultation_id", id).order("created_at");
       if (error) setError(error.message); else setMessages(data ?? []);
       channel = sb.channel(`consult-${id}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `consultation_id=eq.${id}` },
-          (payload) => setMessages((cur) => (cur.some((m) => m.id === (payload.new as Msg).id) ? cur : [...cur, payload.new as Msg])))
+          (payload) => {
+          setMessages((cur) => (cur.some((m) => m.id === (payload.new as Msg).id) ? cur : [...cur, payload.new as Msg]));
+          if ((payload.new as Msg).sender_id !== user.id) sb.rpc("mark_read", { cid: id });
+        })
         .subscribe();
     })();
     return () => { if (channel) sb.removeChannel(channel); };
@@ -130,6 +134,7 @@ export default function Consult() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Consultation {closed && <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 align-middle text-xs font-semibold text-slate-600">Closed</span>}</h1>
         <div className="flex gap-2">
+          {c && !closed && c.paid && (isDoctor || isPatient) && <a className="btn" href={`https://meet.jit.si/medbot-${id}`} target="_blank" rel="noreferrer">Video / voice call</a>}
           {c && (isDoctor || isPatient) && <button className="btn-ghost" onClick={exportFhir}>Export FHIR</button>}
           {isDoctor && !closed && !closing && <button className="btn-ghost" onClick={() => setClosing(true)}>Close consultation</button>}
         </div>
@@ -148,12 +153,13 @@ export default function Consult() {
         </div>
       )}
 
-      {c && c.symptoms.length > 0 && (
+      {c && (c.symptoms.length > 0 || c.reason) && (
         <div className="card space-y-1 text-sm">
           <div className="flex items-center gap-2 font-semibold">
             {c.urgency && <span className={`h-2.5 w-2.5 rounded-full ${dot[c.urgency]}`} />}
-            Symptom check summary{c.urgency ? ` · ${c.urgency}` : ""}
+            {c.symptoms.length > 0 ? `Symptom check summary${c.urgency ? ` · ${c.urgency}` : ""}` : "Request"}
           </div>
+          {c.reason && <div><span className="text-slate-500">Reason for contact:</span> {c.reason}</div>}
           <div><span className="text-slate-500">Symptoms:</span> {c.symptoms.map(label).join(", ")}</div>
           {c.top_prediction && <div><span className="text-slate-500">Top automated match:</span> {c.top_prediction} <span className="text-xs text-slate-400">(not a diagnosis)</span></div>}
           {(c.age_group || c.sex) && <div><span className="text-slate-500">Patient:</span> {[c.sex, c.age_group === "child" ? "under 5" : c.age_group === "senior" ? "65+" : c.age_group].filter(Boolean).join(", ")}</div>}
@@ -208,6 +214,7 @@ export default function Consult() {
           <button className="btn">Send</button>
         </form>
       )}
+      {c && !closed && c.paid && <p className="text-xs text-slate-500">The call button opens a private video room for this consultation in a new tab. Both of you use the same button. The service may ask the first person to sign in.</p>}
       <p className="text-xs text-slate-500">Not for emergencies. If you feel seriously unwell, call 999 or 112.</p>
     </div>
   );

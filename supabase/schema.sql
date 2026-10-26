@@ -160,3 +160,17 @@ revoke execute on function public.handle_new_user() from public, anon, authentic
 -- Tables: app_settings (payments_enabled, default false), payments (pending/paid/failed), consultations.paid.
 -- Functions: set_consultation_paid (trigger), start_payment, attach_checkout, record_mpesa_callback (secret-guarded).
 -- Messages can only be sent in open, paid consultations. See the Supabase migration history for the full SQL.
+
+-- v0.6 (in-app contact): reason for contact, read tracking, one open conversation per patient+doctor,
+-- patients can only contact verified doctors, my_inbox() and mark_read().
+alter table public.consultations
+  add column if not exists reason text check (char_length(reason) <= 500),
+  add column if not exists patient_last_read timestamptz,
+  add column if not exists doctor_last_read timestamptz;
+create unique index if not exists one_open_consultation_per_pair on public.consultations (patient_id, doctor_id) where status = 'open';
+drop policy if exists "patient creates" on public.consultations;
+create policy "patient creates" on public.consultations for insert with check (
+  patient_id = auth.uid() and exists (select 1 from public.doctors d where d.id = doctor_id and d.verified));
+-- my_inbox() returns each conversation with the other person's name, last message and unread count;
+-- mark_read(cid) stamps the caller's last-read time. Both are security definer, granted to authenticated only.
+-- See the Supabase migration "in_app_inbox_and_requests" for the full function bodies.

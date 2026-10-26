@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useMe } from "@/lib/useMe";
 import { SPECIALTIES } from "@/lib/triage";
 
-type Row = { urgency: "emergency" | "soon" | "routine" | null; id: string; created_at: string; status: string; patient: { full_name: string } | null; doctor: { specialty: string; profiles: { full_name: string } | null } | null };
+type Row = { id: string; status: string; paid: boolean; urgency: "emergency" | "soon" | "routine" | null; reason: string | null; created_at: string; other_name: string | null; specialty: string; last_body: string | null; last_at: string | null; unread: number };
 type DoctorRow = { specialty: string; hospital: string | null; bio: string | null; fee_kes: number; verified: boolean; licence_number: string | null; licence_doc: string | null };
 const dotColor = { emergency: "bg-red-500", soon: "bg-amber-500", routine: "bg-emerald-500" } as const;
 
@@ -24,10 +24,8 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     if (!me) return;
     const sb = supabase();
-    const { data } = await sb.from("consultations")
-      .select("id, urgency, created_at, status, patient:profiles!consultations_patient_id_fkey(full_name), doctor:doctors(specialty, profiles(full_name))")
-      .order("created_at", { ascending: false });
-    setRows((data as unknown as Row[]) ?? []);
+    const { data } = await sb.rpc("my_inbox");
+    setRows((data as Row[]) ?? []);
     if (me.role === "doctor") {
       const { data: d } = await sb.from("doctors").select("specialty, hospital, bio, fee_kes, verified, licence_number, licence_doc").eq("id", me.id).maybeSingle();
       const { data: rt } = await sb.from("doctor_ratings").select("avg_rating, n").eq("doctor_id", me.id).maybeSingle();
@@ -96,19 +94,22 @@ export default function Dashboard() {
       )}
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Your consultations</h2>
+        <h2 className="font-semibold">{me.role === "doctor" ? "Patient messages" : "Your conversations"}</h2>
         {rows.length === 0 ? (
-          <p className="text-sm text-slate-600">{me.role === "doctor" ? "No patients yet." : <>None yet. <Link className="font-medium text-brand-700" href="/doctors">Find a doctor</Link>.</>}</p>
+          <p className="text-sm text-slate-600">{me.role === "doctor" ? "No patient messages yet." : <>No conversations yet. <Link className="font-medium text-brand-700" href="/doctors">Message a specialist</Link>.</>}</p>
         ) : rows.map((r) => (
-          <Link key={r.id} href={`/consult/${r.id}`} className="card flex items-center justify-between hover:border-brand-500">
-            <div>
+          <Link key={r.id} href={`/consult/${r.id}`} className={`card block hover:border-brand-500 ${r.unread > 0 ? "border-brand-500" : ""}`}>
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 font-medium">
                 {r.urgency && <span className={`h-2.5 w-2.5 rounded-full ${dotColor[r.urgency]}`} />}
-                {me.role === "doctor" ? r.patient?.full_name || "Patient" : `Dr. ${r.doctor?.profiles?.full_name ?? ""}`}
+                {me.role === "doctor" ? r.other_name || "Patient" : `Dr. ${r.other_name ?? ""}`}
+                {r.unread > 0 && <span className="rounded-full bg-brand-600 px-2 py-0.5 text-xs font-semibold text-white">{r.unread} new</span>}
+                {!r.last_at && r.status === "open" && me.role === "doctor" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">New request</span>}
               </div>
-              <div className="text-xs text-slate-500">{r.doctor?.specialty} · {new Date(r.created_at).toLocaleDateString()} · {r.status}</div>
+              <span className="whitespace-nowrap text-xs text-slate-500">{new Date(r.last_at ?? r.created_at).toLocaleDateString()}</span>
             </div>
-            <span className="text-sm font-medium text-brand-700">{r.status === "open" ? "Open chat →" : "View →"}</span>
+            <div className="mt-1 truncate text-sm text-slate-600">{r.last_body ?? r.reason ?? "No messages yet"}</div>
+            <div className="mt-1 text-xs text-slate-500">{r.specialty} · {r.status}{!r.paid && r.status === "open" ? " · awaiting payment" : ""}</div>
           </Link>
         ))}
       </section>
