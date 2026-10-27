@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SANDBOX_SHORTCODE = "174379";
 const SANDBOX_PASSKEY = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
 
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const body = (await req.json().catch(() => null)) as { consultation_id?: string } | null;
-  if (!token || !body?.consultation_id) return NextResponse.json({ status: "error" }, { status: 400 });
+  if (!token || !body?.consultation_id || !UUID.test(body.consultation_id)) return NextResponse.json({ status: "error" }, { status: 400 });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const user = createClient(url, anon, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });

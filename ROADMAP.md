@@ -15,6 +15,7 @@ Shape of the system: one repo, one Vercel project, one Supabase project. Nothing
 - [x] Model evaluation tool: scripts/evaluate_vignettes.py (top-1/top-3 accuracy, under-triage rate) for clinician-written vignettes
 - [x] Symptom checker uses Kenyan outpatient prevalence (scripts/kenya_priors.csv) + a "can't-miss" rule for serious conditions; datasets reviewed in docs/DATASETS.md
 - [x] In-app contact: patients message a verified specialist with a reason (symptom check attached), one open conversation per doctor, inbox with unread counts, doctors see "New request", video/voice call button (free public Jitsi room, opens in a new tab)
+- [x] Security pass: Next.js upgraded to patched 16.4.3 (0 audit findings), ~100 simulated attacks (see docs/SECURITY.md), review privacy fix, rate limits, honeypots + scanner traps + decoy API functions + security events panel, optional 2FA (enforced for admins who enable it), CSP/HSTS headers, optional CAPTCHA
 - [x] Hardening: row-level security everywhere, private licence storage, database indexes, security headers,
       daily keep-alive cron (stops Supabase free plan pausing), monthly Dependabot updates
 
@@ -31,6 +32,8 @@ Shape of the system: one repo, one Vercel project, one Supabase project. Nothing
 - [ ] SMS / USSD access for basic phones
 
 ## Waiting on you
+- [ ] Security checklist in docs/SECURITY.md (Supabase password length, CAPTCHA, rate limits, 2FA on your accounts)
+- [ ] Payments are switched ON in /admin but the M-Pesa keys are not in Vercel: add the keys or switch payments off
 - [ ] Safaricom Daraja sandbox keys -> add MPESA_CONSUMER_KEY / MPESA_CONSUMER_SECRET in Vercel -> turn payments on in /admin
 - [ ] Revoke the GitHub token that was pasted in chat; change the passwords from superadmin.txt
 - [ ] Supabase: set Site URL to https://medbot-xi-one.vercel.app (Authentication -> URL Configuration)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SANDBOX_SHORTCODE = "174379";
 // Public Daraja sandbox passkey (published in Safaricom's docs). Production uses your own via MPESA_PASSKEY.
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json().catch(() => null)) as { consultation_id?: string; phone?: string } | null;
   const phone = body?.phone ? normalisePhone(body.phone) : null;
-  if (!body?.consultation_id || !phone) return NextResponse.json({ error: "Enter a valid Safaricom number, e.g. 0712345678." }, { status: 400 });
+  if (!body?.consultation_id || !UUID.test(body.consultation_id) || !phone) return NextResponse.json({ error: "Enter a valid Safaricom number, e.g. 0712345678." }, { status: 400 });
 
   // Runs as the signed-in patient, so database rules decide whether this payment is allowed and what the amount is.
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {

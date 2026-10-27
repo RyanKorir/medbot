@@ -8,5 +8,6 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
   const { error } = await sb.from("app_settings").select("payments_enabled").eq("id", 1).maybeSingle();
+  await sb.rpc("prune_security_events"); // keep the trap log to 30 days
   return NextResponse.json({ ok: !error }, { status: error ? 503 : 200 });
 }

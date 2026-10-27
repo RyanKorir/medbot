@@ -7,8 +7,9 @@ type Item = { Name: string; Value?: string | number };
 
 // Safaricom calls this after the customer enters (or cancels) their PIN. The secret in the URL, checked again
 // inside the database function, stops anyone else from faking a payment.
-export async function POST(req: NextRequest, { params }: { params: { secret: string } }) {
-  if (!process.env.MPESA_CALLBACK_SECRET || params.secret !== process.env.MPESA_CALLBACK_SECRET) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ secret: string }> }) {
+  const { secret } = await params;
+  if (!process.env.MPESA_CALLBACK_SECRET || secret !== process.env.MPESA_CALLBACK_SECRET) {
     return NextResponse.json({ ResultCode: 1, ResultDesc: "Forbidden" }, { status: 403 });
   }
   const body = await req.json().catch(() => null);
